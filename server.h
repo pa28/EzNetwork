@@ -150,7 +150,7 @@ namespace eznet {
         bool isWrite(socket_list_t::iterator c) { return FD_ISSET((*c)->fd(), &wr_set); }
 
         /**
-         * @brief Determin if a socket is selected for exception
+         * @brief Determine if a socket is selected for exception
          * @param c an iterator selecting a socket
          * @return true if selected
          */
@@ -175,7 +175,9 @@ namespace eznet {
     protected:
         socket_list_t listeners;        ///< A list of server listening sockets
         socket_list_t sockets;          ///< A list of accepted connection sockets
-        fd_set  rd_set, wr_set, ex_set; ///< The file descriptor sets for the select call
+        fd_set  rd_set,                 ///< The file descriptor sets for the select call read
+                wr_set,                 ///< The file descriptor sets for the select call write
+                ex_set;                 ///< The file descriptor sets for the select call exception
 
     };
 
