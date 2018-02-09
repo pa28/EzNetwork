@@ -482,7 +482,7 @@ namespace eznet
                 this->xsputn(&cc, 1);
             }
 
-            return traits_type::to_int_type(c);
+            return c;
         }
 
         /**
