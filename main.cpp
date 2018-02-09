@@ -14,7 +14,7 @@ int main() {
     auto serverListen = server.pushBack(make_unique<Socket>("", "8000"));
 
     // Listen to IPV6 which will also listen to IPV4
-    if ((*serverListen)->listen(10, AF_INET6) < 0) {
+    if ((*serverListen)->listen(10, AF_INET6, AF_UNSPEC) < 0) {
         cerr << "Server listen error: " << strerror(errno);
         return 1;
     }

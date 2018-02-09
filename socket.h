@@ -149,9 +149,9 @@ namespace eznet
 
         struct addrinfo *peer_info;
 
-        unique_ptr<struct addrinfo> hints{};                ///< Connection hints
-        unique_ptr<struct sockaddr_storage> peer_addr{};    ///< Storage of the peer address used to connect
+        unique_ptr<struct addrinfo> hints;  ///< Connection hints
 
+        struct sockaddr_storage peer_addr;  ///< Storage of the peer address used to connect
         socklen_t peer_len;                 ///< The length of the peer address storage
         SocketType socket_type;             ///< The type of socket
 
@@ -161,20 +161,10 @@ namespace eznet
          * @param ai_family_preference the preferred address family AF_INET, AF_INET6 or AF_UNSPEC
          */
         void findPeerInfo(int (*bind_connect)(int, const struct sockaddr *, socklen_t),
-                          int ai_family_preference) {
-
-            /**
-             * Create a list of address families to iterate over to find the preferred family.
-             * AF_UNSPEC is always at the end.
-             */
-            list<int> pref_list{ AF_UNSPEC };
-
-            // Prepend the user perference if it is not AF_UNSPC, so we don't iterate unnecessarily
-            if (ai_family_preference != AF_UNSPEC)
-                pref_list.push_front( ai_family_preference );
+                          list<int>& ai_family_preference) {
 
             // Loop over preferences
-            for (auto pref: pref_list) {
+            for (auto pref: ai_family_preference) {
                 // And each discovered connection possibility
                 for (struct addrinfo *peer = peer_info; peer != nullptr; peer = peer->ai_next) {
                     // Apply preference
@@ -342,15 +332,19 @@ namespace eznet
          */
         void setStatus(int s) { status = s; }
 
+
         /**
          * @brief Complete a socket as a connection or client socket
-         * @param ai_family_preference the address family preference
+         * @tparam AiFamilyPrefs A template parameter pack for a list of AF families
+         * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
          * @return the socket fd or -1 on error
-         * @details Finds a connection specification that allows a socket to be created
-         * and connected preferring the provided address family preference, if any.
          */
-        int connect(int ai_family_preference = AF_UNSPEC) {
-            findPeerInfo( ::connect, ai_family_preference );
+        template <typename... AiFamilyPrefs>
+        int connect(AiFamilyPrefs... familyPrefs) {
+            list<int> prefsList{};
+            (prefsList.push_back(familyPrefs), ...);
+
+            findPeerInfo( ::connect, prefsList );
 
             freeaddrinfo(peer_info);
             peer_info = nullptr;
@@ -362,14 +356,19 @@ namespace eznet
 
         /**
          * @brief Complet a socket as a listen or server socket
+         * @tparam AiFamilyPrefs A template parameter pack for a list of AF families
          * @param backlog the parameter passed to listen(2) as backlog
-         * @param ai_family_preference the address family preference
+         * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
          * @return the socket fd or -1 on error
          * @details Finds a connection specification that allows a socket to be created
          * and bound preferring the provided address family preference, if any.
          */
-        int listen(int backlog, int ai_family_preference = AF_UNSPEC) {
-            findPeerInfo( ::bind, ai_family_preference );
+        template <typename... AiFamilyPrefs>
+        int listen(int backlog, AiFamilyPrefs... familyPrefs) {
+            list<int> prefsList{};
+            (prefsList.push_back(familyPrefs), ...);
+
+            findPeerInfo( ::bind, prefsList );
 
             freeaddrinfo(peer_info);
 
