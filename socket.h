@@ -123,7 +123,7 @@ namespace eznet
             af_type = other.af_type;
             hints = std::move(other.hints);
             peer_info = other.peer_info;
-            peer_addr = std::move(other.peer_addr);
+            memcpy(&peer_addr, &other.peer_addr, other.peer_len);
             peer_len = other.peer_len;
             socket_type = other.socket_type;
 
@@ -221,7 +221,7 @@ namespace eznet
                 error_str{},
                 sock_fd{fd},
                 status{},
-                hints{},
+                hints{new struct addrinfo()},
                 peer_info{nullptr},
                 af_type{addr->sa_family},
                 peer_addr{},
@@ -244,7 +244,7 @@ namespace eznet
                 error_str{},
                 sock_fd{-1},
                 status{},
-                hints{},
+                hints{new struct addrinfo()},
                 peer_info{nullptr},
                 af_type{AF_UNSPEC},
                 peer_addr{},
@@ -279,6 +279,7 @@ namespace eznet
          * Strong exception safety.
          */
         void init() {
+
             memset(hints.get(), 0, sizeof(hints));
 
             hints->ai_flags = AF_UNSPEC;
