@@ -14,10 +14,12 @@ int main() {
     auto serverListen = server.pushBack(make_unique<Socket>("", "8000"));
 
     // Listen to IPV6 which will also listen to IPV4
-    if ((*serverListen)->listen(10, AF_INET6, AF_UNSPEC) < 0) {
+    if ((*serverListen)->listen(10, AF_INET6) < 0) {
         cerr << "Server listen error: " << strerror(errno);
         return 1;
     }
+
+    cout << "Server connection " << (*serverListen)->getPeerName() << endl;
 
     bool run = true;
 
@@ -29,15 +31,17 @@ int main() {
                 if (server.isConnectRequest(first)) {
                     auto newSock = server.accept(first);
                     if ((*newSock)->fd() >= 0) {
-                        cout << "New connection" << endl;
+                        cout << "New connection " << (*newSock)->getPeerName() << endl;
                     }
                 } else if (server.isRead(first)) {
                     char buf[BUFSIZ];
                     ssize_t n = ::recv((*first)->fd(), buf, sizeof(buf), 0);
-                    if (n > 0)
+                    if (n > 0) {
                         cout.write(buf, n);
-                    else
+                    } else {
+                        cout << "Client " <<(*first)->getPeerName() << " disconnected." << endl;
                         (*first)->close();
+                    }
                 }
             }
         }
