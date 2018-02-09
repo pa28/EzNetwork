@@ -113,6 +113,31 @@ namespace eznet
     public:
         SelectClients selectClients;    ///< How this socket should be selected.
 
+        Socket& operator = (const Socket &) = delete;
+        Socket& operator = (Socket && other) noexcept {
+            peer_host = other.peer_host;
+            peer_port = other.peer_port;
+            error_str = other.error_str;
+            sock_fd = other.sock_fd;
+            status = other.status;
+            af_type = other.af_type;
+            hints = std::move(other.hints);
+            peer_info = other.peer_info;
+            peer_addr = std::move(other.peer_addr);
+            peer_len = other.peer_len;
+            socket_type = other.socket_type;
+
+            other.peer_host.clear();
+            other.peer_port.clear();
+            other.error_str.clear();
+            other.peer_info = nullptr;
+            other.sock_fd = -1;
+            other.status = 0;
+            other.af_type = AF_UNSPEC;
+            other.peer_len = 0;
+            other.socket_type = SockUnknown;
+        }
+
     protected:
         string  peer_host,      ///< The user provided peer host name or address.
                 peer_port,      ///< The user provided peer port or service name.
@@ -122,11 +147,11 @@ namespace eznet
                 status,         ///< Status of some called messages
                 af_type;        ///< The address family of the socket
 
-        struct addrinfo hints;  ///< Connection hints
-        struct addrinfo*peer_info;  ///< Discovered peer info, freed after connection
-        ;
+        struct addrinfo *peer_info;
 
-        struct sockaddr_storage peer_addr;  ///< Storage of the peer address used to connect
+        unique_ptr<struct addrinfo> hints{};                ///< Connection hints
+        unique_ptr<struct sockaddr_storage> peer_addr{};    ///< Storage of the peer address used to connect
+
         socklen_t peer_len;                 ///< The length of the peer address storage
         SocketType socket_type;             ///< The type of socket
 
@@ -207,7 +232,7 @@ namespace eznet
                 sock_fd{fd},
                 status{},
                 hints{},
-                peer_info{},
+                peer_info{nullptr},
                 af_type{addr->sa_family},
                 peer_addr{},
                 socket_type{SockAccept},
@@ -230,7 +255,7 @@ namespace eznet
                 sock_fd{-1},
                 status{},
                 hints{},
-                peer_info{},
+                peer_info{nullptr},
                 af_type{AF_UNSPEC},
                 peer_addr{},
                 socket_type{SockUnknown},
@@ -262,15 +287,16 @@ namespace eznet
          * Strong exception safety.
          */
         void init() {
-            memset(&hints, 0, sizeof(hints));
+            memset(hints.get(), 0, sizeof(hints));
 
-            hints.ai_flags = AF_UNSPEC;
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_flags = AI_PASSIVE;
+            hints->ai_flags = AF_UNSPEC;
+            hints->ai_socktype = SOCK_STREAM;
+            hints->ai_flags = AI_PASSIVE;
 
             if ((status = getaddrinfo( (peer_host.length() ? peer_host.c_str() : nullptr),
-                                       peer_port.c_str(), &hints, &peer_info))) {
+                                       peer_port.c_str(), hints.get(), &peer_info))) {
                 freeaddrinfo(peer_info);
+                peer_info = nullptr;
                 memset(&hints, 0, sizeof(hints));
                 throw logic_error(string{"getaddrinfo error: "} + gai_strerror(status));
             }
