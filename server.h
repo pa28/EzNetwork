@@ -12,13 +12,65 @@ using namespace std;
 
 namespace eznet {
 
+    using socket_list_t = std::list<std::unique_ptr<eznet::Socket>>;
+
+    class FD_Set
+    {
+    protected:
+        int n;                          ///< The largest file descriptor set + 1;
+
+        fd_set  rd_set,                 ///< The file descriptor sets for the select call read
+                wr_set,                 ///< The file descriptor sets for the select call write
+                ex_set;                 ///< The file descriptor sets for the select call exception
+
+    public:
+        FD_Set() : n{0}, rd_set{}, wr_set{}, ex_set{}
+        {
+            clear();
+        }
+
+        void clear()
+        {
+            // Clear the fd_sets
+            FD_ZERO(&rd_set);
+            FD_ZERO(&wr_set);
+            FD_ZERO(&ex_set);
+
+            n = 0;
+        }
+
+        void set(const socket_list_t::iterator sock) {
+            set(*sock);
+        }
+
+        void set(unique_ptr<Socket> &sock) {
+            if (sock->selectClients != SC_None) {
+                if (sock->selectClients & SC_Read)
+                    FD_SET(sock->fd(), &rd_set);
+                if (sock->selectClients & SC_Write)
+                    FD_SET(sock->fd(), &wr_set);
+                if (sock->selectClients & SC_Except)
+                    FD_SET(sock->fd(), &ex_set);
+                n = max(n, sock->fd() + 1);
+            }
+        }
+
+        int select(struct timeval *timeout = nullptr) {
+            return ::select(n, &rd_set, &wr_set, &ex_set, timeout);
+        }
+
+        bool isRead(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &rd_set); }
+        bool isWrite(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &wr_set); }
+        bool isExcept(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &ex_set); }
+        bool isSelected(unique_ptr<Socket> &s) { return isRead(s) || isWrite(s) || isExcept(s); }
+
+    };
+
     /**
      * @brief An abstraction of a network server.
      */
     class Server {
     public:
-
-        using socket_list_t = std::list<std::unique_ptr<eznet::Socket>>;
 
         string errorString;
 
@@ -53,27 +105,14 @@ namespace eznet {
 
             newSockets.clear();
 
-            // Clear the fd_sets
-            FD_ZERO(&rd_set);
-            FD_ZERO(&wr_set);
-            FD_ZERO(&ex_set);
-
-            int n = 0;
+            fd_set.clear();
 
             // Select all sockets
             for ( auto &&s: sockets ) {
-                if (s->selectClients != SC_None) {
-                    if (s->selectClients & SC_Read)
-                        FD_SET(s->fd(), &rd_set);
-                    if (s->selectClients & SC_Write)
-                        FD_SET(s->fd(), &wr_set);
-                    if (s->selectClients & SC_Except)
-                        FD_SET(s->fd(), &ex_set);
-                    n = max(n, s->fd() + 1);
-                }
+                fd_set.set(s);
             }
 
-            return ::select( n, &rd_set, &wr_set, &ex_set, timeout);
+            return fd_set.select(timeout);
         }
 
 
@@ -109,7 +148,7 @@ namespace eznet {
         bool isConnectRequest(socket_list_t::iterator &listener) {
                 return listener != sockets.end() &&
                        (*listener)->socketType() == SocketType::SockListen &&
-                       FD_ISSET ((*listener)->fd(), &rd_set);
+                        fd_set.isRead(*listener);
         }
 
 
@@ -118,7 +157,7 @@ namespace eznet {
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isRead(socket_list_t::iterator &c) { return FD_ISSET((*c)->fd(), &rd_set); }
+        bool isRead(socket_list_t::iterator &c) { return fd_set.isRead(*c); }
 
 
         /**
@@ -126,7 +165,7 @@ namespace eznet {
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isWrite(socket_list_t::iterator &c) { return FD_ISSET((*c)->fd(), &wr_set); }
+        bool isWrite(socket_list_t::iterator &c) { return fd_set.isWrite(*c); }
 
 
         /**
@@ -134,13 +173,15 @@ namespace eznet {
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isExcept(socket_list_t::iterator &c) { return FD_ISSET((*c)->fd(), &ex_set); }
+        bool isExcept(socket_list_t::iterator &c) { return fd_set.isExcept(*c); }
 
 
-        bool isSelected(socket_list_t::iterator &listener) {
-            int fd = (*listener)->fd();
-            return FD_ISSET(fd, &rd_set) || FD_ISSET(fd, &wr_set) || FD_ISSET(fd, &ex_set);
-        }
+        /**
+         * @brief Deterimin if a socket is selected for any state
+         * @param listener an iterator selecting a socket
+         * @return true if selected
+         */
+        bool isSelected(socket_list_t::iterator &listener) { return fd_set.isSelected(*listener); }
 
 
         auto begin() { return sockets.begin(); }            ///< first connected socket iterator
@@ -160,10 +201,7 @@ namespace eznet {
     protected:
         socket_list_t sockets;          ///< A list of accepted connection sockets
         socket_list_t newSockets;       ///< A list of sockets accepted
-        fd_set  rd_set,                 ///< The file descriptor sets for the select call read
-                wr_set,                 ///< The file descriptor sets for the select call write
-                ex_set;                 ///< The file descriptor sets for the select call exception
-
+        FD_Set fd_set;                  ///< An object containing the fd_sets used
     };
 }
 
