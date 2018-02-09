@@ -13,18 +13,6 @@ using namespace std;
 namespace eznet {
 
     /**
-     * @brief How connected sockets are selected. A bitwise OR mask may be used.
-     */
-    enum SelectClients
-    {
-        SC_None = 0,        ///< No connected sockets are slected
-        SC_Read = 1,        ///< Select for read
-        SC_Write = 2,       ///< Select for write
-        SC_Except = 4,      ///< Select for exception
-        SC_All = 7          ///< Select for all
-    };
-
-    /**
      * @brief An abstraction of a network server.
      */
     class Server {
@@ -32,46 +20,12 @@ namespace eznet {
 
         using socket_list_t = std::list<std::unique_ptr<eznet::Socket>>;
 
+        string errorString;
+
         /**
          * @brief (constructor)
-         * @param port The server port or service name
-         * @param host The host name of the server interface
          */
-        explicit Server(const string &port, const string &host = "") :
-                rd_set{},
-                wr_set{},
-                ex_set{}
-        {
-            listeners.push_back(make_unique<Socket>(host,port));
-        }
-
-
-        /**
-         * @brief Call ::listen() on a selected socket
-         * @param listener An iterator selecting a listening socket
-         * @param backlog The socket listen backlog
-         * @param af_family_preference The prefered address family
-         * @return The value returned by ::listen()
-         */
-        int listen(socket_list_t::iterator listener, int backlog, int af_family_preference = AF_INET6) {
-            return (*listener)->listen(backlog, af_family_preference);
-        }
-
-
-        /**
-         * @brief Call listen on each listener socket, store returned status on the socket
-         * @param backlog The socket listen backlog
-         * @param af_family_preference The preferred address family
-         * @return 0 if all calls to listen returned 0, otherwise 1
-         */
-        int listen(int backlog, int af_family_preference = AF_INET6) {
-            int r = 0;
-            for (auto l = listeners.begin(); l != listeners.end(); ++l) {
-                (*l)->setStatus(listen(l, backlog, af_family_preference));
-                if ((*l)->getStatus())
-                    r = 1;
-            }
-        }
+        Server() = default;
 
 
         /**
@@ -82,6 +36,23 @@ namespace eznet {
          */
         int select(SelectClients selectClients = SC_All,
                    struct timeval *timeout = nullptr) {
+            // Clean sockets
+            auto socket = sockets.begin();
+            while (socket != sockets.end()) {
+                if ((*socket)->fd() < 0) {
+                    socket = sockets.erase(socket);
+                } else {
+                    ++socket;
+                }
+            }
+
+            // Move new sockets onto the list.
+            for (auto &&ns: newSockets) {
+                sockets.push_back(std::move(ns));
+            }
+
+            newSockets.clear();
+
             // Clear the fd_sets
             FD_ZERO(&rd_set);
             FD_ZERO(&wr_set);
@@ -89,16 +60,17 @@ namespace eznet {
 
             int n = 0;
 
-            // Add server listener sockets
-            for ( auto &&l: listeners ) {
-                FD_SET(l->fd(), &rd_set);
-                n = max(n, l->fd()+1);
-            }
-
-            // Add server accepted connections
+            // Select all sockets
             for ( auto &&s: sockets ) {
-                FD_SET(s->fd(), &rd_set);
-                n = max(n, s->fd()+1);
+                if (s->selectClients != SC_None) {
+                    if (s->selectClients & SC_Read)
+                        FD_SET(s->fd(), &rd_set);
+                    if (s->selectClients & SC_Write)
+                        FD_SET(s->fd(), &wr_set);
+                    if (s->selectClients & SC_Except)
+                        FD_SET(s->fd(), &ex_set);
+                    n = max(n, s->fd() + 1);
+                }
             }
 
             return ::select( n, &rd_set, &wr_set, &ex_set, timeout);
@@ -112,13 +84,17 @@ namespace eznet {
          * @return The value returned from ::accept()
          */
         int accept(socket_list_t::iterator listener) {
-            struct sockaddr_storage client_addr{};
-            socklen_t length;
+            if ((*listener)->socketType() == SockListen) {
+                struct sockaddr_storage client_addr{};
+                socklen_t length = sizeof(client_addr);
 
-            int clientfd = ::accept((*listener)->fd(), (struct sockaddr *) &client_addr, &length);
-            if (clientfd >= 0) {
-                sockets.push_back(std::make_unique<Socket>(clientfd, (struct sockaddr *)&client_addr, length));
-                return clientfd;
+                int clientfd = ::accept((*listener)->fd(), (struct sockaddr *) &client_addr, &length);
+                if (clientfd >= 0) {
+                    newSockets.push_back(std::make_unique<Socket>(clientfd, (struct sockaddr *) &client_addr, length));
+                    return clientfd;
+                }
+            } else {
+                errorString = "Not a listen socket.";
             }
 
             return -1;
@@ -131,7 +107,9 @@ namespace eznet {
          * @return true if the listener has a connection request
          */
         bool isConnectRequest(socket_list_t::iterator &listener) {
-                return FD_ISSET((*listener)->fd(), &rd_set);
+                return listener != sockets.end() &&
+                       (*listener)->socketType() == SocketType::SockListen &&
+                       FD_ISSET ((*listener)->fd(), &rd_set);
         }
 
 
@@ -140,46 +118,53 @@ namespace eznet {
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isRead(socket_list_t::iterator c) { return FD_ISSET((*c)->fd(), &rd_set); }
+        bool isRead(socket_list_t::iterator &c) { return FD_ISSET((*c)->fd(), &rd_set); }
+
 
         /**
          * @brief Determin if a socket is selected for write
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isWrite(socket_list_t::iterator c) { return FD_ISSET((*c)->fd(), &wr_set); }
+        bool isWrite(socket_list_t::iterator &c) { return FD_ISSET((*c)->fd(), &wr_set); }
+
 
         /**
          * @brief Determine if a socket is selected for exception
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isExcept(socket_list_t::iterator c) { return FD_ISSET((*c)->fd(), &ex_set); }
+        bool isExcept(socket_list_t::iterator &c) { return FD_ISSET((*c)->fd(), &ex_set); }
 
 
-        auto begin() { return sockets.begin(); }                        ///< first connected socket iterator
-        auto end() { return sockets.end(); }                            ///< last connected socket iterator
+        bool isSelected(socket_list_t::iterator &listener) {
+            int fd = (*listener)->fd();
+            return FD_ISSET(fd, &rd_set) || FD_ISSET(fd, &wr_set) || FD_ISSET(fd, &ex_set);
+        }
 
-        auto cbegin() const { return sockets.cbegin(); }                ///< const first connected socket iterator
-        auto cend() const { return sockets.cend(); }                    ///< const last connected socket iterator
 
-        auto size() const { return sockets.size(); }                    ///< the number of connected sockets
-        auto empty() const { return sockets.empty(); }                  ///< true if there are no connected sockets
+        auto begin() { return sockets.begin(); }            ///< first connected socket iterator
+        auto end() { return sockets.end(); }                ///< last connected socket iterator
 
-        auto listenersBegin() { return listeners.begin(); }             ///< first listener socket iterator
-        auto listenersEnd() { return listeners.end(); }                 ///< last connected socket iterator
+        auto cbegin() const { return sockets.cbegin(); }    ///< const first connected socket iterator
+        auto cend() const { return sockets.cend(); }        ///< const last connected socket iterator
 
-        auto clistenersBegin() const { return listeners.cbegin(); }     ///< const first listener socket iterator
-        auto clistenersEnd() const { return listeners.cend(); }         ///< const last connected socket iterator
+        auto size() const { return sockets.size(); }        ///< the number of connected sockets
+        auto empty() const { return sockets.empty(); }      ///< true if there are no connected sockets
+
+        auto pushBack(unique_ptr<Socket> socketPtr) {        ///< Push back a unique pointer to a Socket
+            sockets.push_back(std::move(socketPtr));
+            return sockets.rbegin();
+        }
 
     protected:
-        socket_list_t listeners;        ///< A list of server listening sockets
         socket_list_t sockets;          ///< A list of accepted connection sockets
+        socket_list_t newSockets;       ///< A list of sockets accepted
         fd_set  rd_set,                 ///< The file descriptor sets for the select call read
                 wr_set,                 ///< The file descriptor sets for the select call write
                 ex_set;                 ///< The file descriptor sets for the select call exception
 
     };
-
 }
+
 #endif //EZNETWORK_SERVER_H

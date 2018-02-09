@@ -22,6 +22,19 @@ using namespace std;
 namespace eznet
 {
     /**
+     * @brief How sockets should be selected. A bitwise OR mask may be used.
+     */
+    enum SelectClients
+    {
+        SC_None = 0,        ///< No connected sockets are slected
+        SC_Read = 1,        ///< Select for read
+        SC_Write = 2,       ///< Select for write
+        SC_Except = 4,      ///< Select for exception
+        SC_All = 7          ///< Select for all
+    };
+
+
+    /**
      * @brief The type of a socket
      */
     enum SocketType {
@@ -32,10 +45,13 @@ namespace eznet
     };
 
 
+    /**
+     * @brief How the socket should be shutdown
+     */
     enum SocketHow {
-        SHUT_RD = 0,
-        SHUT_WR = 1,
-        SHUT_RDWR = 2,
+        SHUT_RD = 0,    ///< Further reception disabled
+        SHUT_WR = 1,    ///< Further transmission disabled
+        SHUT_RDWR = 2,  ///< Further reception and transmission disabled
     };
 
     /**
@@ -89,9 +105,13 @@ namespace eznet
 
        The IPV6 _any_ address is special in that it will accept connections using both IPV6 and IPV4
      */
+
     class Socket
     {
         friend class socket_streambuf;
+
+    public:
+        SelectClients selectClients;    ///< How this socket should be selected.
 
     protected:
         string  peer_host,      ///< The user provided peer host name or address.
@@ -180,6 +200,7 @@ namespace eznet
                         struct sockaddr *addr,      ///< The peer address
                         socklen_t len               ///< The size of the peer address
         ) :
+                selectClients{SelectClients::SC_Read},
                 peer_host{},
                 peer_port{},
                 error_str{},
@@ -202,6 +223,7 @@ namespace eznet
         explicit Socket(string host,                ///< The hostname or address to connect or bind to
                         string port                 ///< The port number to connect or bind to
         ) :
+                selectClients{SelectClients::SC_Read},
                 peer_host{std::move(host)},
                 peer_port{std::move(port)},
                 error_str{},
@@ -263,6 +285,13 @@ namespace eznet
          * @return the file descriptor
          */
         int fd() const { return sock_fd; }
+
+
+        /**
+         * @brief Get the type of the socket
+         * @return A SocketType value
+         */
+        SocketType socketType() const { return socket_type; }
 
 
         /**
@@ -448,6 +477,6 @@ namespace eznet
             return traits_type::eof();
         }
     };
-
 }
+
 #endif //EZNETWORK_SOCKET_H
