@@ -88,6 +88,11 @@ namespace eznet {
          */
         int select(SelectClients selectClients = SC_All,
                    struct timeval *timeout = nullptr) {
+            // Move new sockets onto the list.
+            for (auto &&ns: newSockets) {
+                sockets.push_back(std::move(ns));
+            }
+
             // Clean sockets
             auto socket = sockets.begin();
             while (socket != sockets.end()) {
@@ -96,11 +101,6 @@ namespace eznet {
                 } else {
                     ++socket;
                 }
-            }
-
-            // Move new sockets onto the list.
-            for (auto &&ns: newSockets) {
-                sockets.push_back(std::move(ns));
             }
 
             newSockets.clear();
