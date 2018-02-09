@@ -385,19 +385,19 @@ namespace eznet
 
         /**
          * @brief Generate a peer address string for the socket.
-         * @param flags Flags that will be passed down to getnameinfo()
+         * @param flags Flags that will be passed to getnameinfo()
          * @return a string with the form <host>:<service>
          * @details For Sockets of type SockListen the 'peer' is the hostname of the interface the
          * Socket is listening to. For other types it is the hostname of the remote machine.
          */
-        string getPeerName(int flags = NI_NOFQDN) {
+        string getPeerName(int flags = NI_NOFQDN | NI_NUMERICSERV) {
             string result;
             char hbuf[NI_MAXHOST];
             char sbuf[NI_MAXSERV];
             if (getnameinfo((const sockaddr*)&peer_addr, peer_len,
                             hbuf, sizeof(hbuf),
                             sbuf, sizeof(sbuf),
-                            NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+                            flags) == 0) {
                 result = string{hbuf} + ':' + sbuf;
             }
 
