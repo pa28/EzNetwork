@@ -270,6 +270,8 @@ namespace eznet
         ~Socket() {
             if (sock_fd >= 0)
                 close();
+            if (peer_info)
+                freeaddrinfo(peer_info);
         }
 
         /**
@@ -351,6 +353,7 @@ namespace eznet
             findPeerInfo( ::connect, ai_family_preference );
 
             freeaddrinfo(peer_info);
+            peer_info = nullptr;
 
             socket_type = SockConnect;
             return sock_fd;
