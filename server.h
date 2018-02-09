@@ -120,23 +120,19 @@ namespace eznet {
          * @brief Accept a connection request on a listener socket, add the accepted connection
          * to the connection list.
          * @param listener An iterator selecting the listener socket
-         * @return The value returned from ::accept()
+         * @return An iterator pointing to the created Socket
          */
-        int accept(socket_list_t::iterator listener) {
+        auto accept(socket_list_t::iterator& listener) {
             if ((*listener)->socketType() == SockListen) {
                 struct sockaddr_storage client_addr{};
                 socklen_t length = sizeof(client_addr);
 
                 int clientfd = ::accept((*listener)->fd(), (struct sockaddr *) &client_addr, &length);
-                if (clientfd >= 0) {
-                    newSockets.push_back(std::make_unique<Socket>(clientfd, (struct sockaddr *) &client_addr, length));
-                    return clientfd;
-                }
-            } else {
-                errorString = "Not a listen socket.";
+                newSockets.push_back(std::make_unique<Socket>(clientfd, (struct sockaddr *) &client_addr, length));
+                return newSockets.rbegin();
             }
 
-            return -1;
+            throw logic_error("Accept on a non-listening socket.");
         }
 
 

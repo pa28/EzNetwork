@@ -27,7 +27,10 @@ int main() {
             if (server.isSelected(first)) {
                 --s;
                 if (server.isConnectRequest(first)) {
-                    int c_fd = server.accept(first);
+                    auto newSock = server.accept(first);
+                    if ((*newSock)->fd() >= 0) {
+                        cout << "New connection" << endl;
+                    }
                 } else if (server.isRead(first)) {
                     char buf[BUFSIZ];
                     ssize_t n = ::recv((*first)->fd(), buf, sizeof(buf), 0);
