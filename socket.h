@@ -372,6 +372,7 @@ namespace eznet
             findPeerInfo( ::bind, prefsList );
 
             freeaddrinfo(peer_info);
+            peer_info = nullptr;
 
             if (sock_fd >= 0)
                 ::listen(sock_fd, backlog);
