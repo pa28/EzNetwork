@@ -23,4 +23,4 @@ else (DOXYGEN_FOUND)
     message("Doxygen needs to be installed to generate the doxygen documentation")
 endif (DOXYGEN_FOUND)
 
-add_executable(EzNetwork main.cpp socket.h server.h)
+add_executable(ServerTest serverTest.cpp socket.h server.h)
