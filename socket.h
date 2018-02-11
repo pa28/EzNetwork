@@ -140,8 +140,7 @@ namespace eznet {
     /**
      * @brief How sockets should be selected. A bitwise OR mask may be used.
      */
-    enum SelectClients
-    {
+    enum SelectClients {
         SC_None = 0,        ///< No connected sockets are slected
         SC_Read = 1,        ///< Select for read
         SC_Write = 2,       ///< Select for write
@@ -222,15 +221,15 @@ namespace eznet {
        The IPV6 _any_ address is special in that it will accept connections using both IPV6 and IPV4
      */
 
-    class Socket
-    {
+    class Socket {
         friend class socket_streambuf;
 
     public:
         SelectClients selectClients;    ///< How this socket should be selected.
 
-        Socket& operator = (const Socket &) = delete;
-        Socket& operator = (Socket && other) noexcept {
+        Socket &operator=(const Socket &) = delete;
+
+        Socket &operator=(Socket &&other) noexcept {
             peer_host = other.peer_host;
             peer_port = other.peer_port;
             error_str = other.error_str;
@@ -255,17 +254,17 @@ namespace eznet {
         }
 
     protected:
-        string  peer_host,      ///< The user provided peer host name or address.
+        string peer_host,       ///< The user provided peer host name or address.
                 peer_port,      ///< The user provided peer port or service name.
                 error_str;      ///< The last error message collected.
 
-        int     sock_fd,        ///< The socket file descriptor
+        int sock_fd,            ///< The socket file descriptor
                 status,         ///< Status of some called messages
                 af_type;        ///< The address family of the socket
 
         struct addrinfo *peer_info;
 
-        unique_ptr<struct addrinfo> hints;  ///< Connection hints
+        unique_ptr<struct addrinfo> hints;     ///< Connection hints
         unique_ptr<socket_streambuf> strmbuf;  ///< A buffer to abstract the socket as a stream
 
         struct sockaddr_storage peer_addr;  ///< Storage of the peer address used to connect
@@ -280,7 +279,7 @@ namespace eznet {
          * @param ai_family_preference the preferred address family AF_INET, AF_INET6 or AF_UNSPEC
          */
         void findPeerInfo(int (*bind_connect)(int, const struct sockaddr *, socklen_t),
-                          list<int>& ai_family_preference) {
+                          list<int> &ai_family_preference) {
 
             // Loop over preferences
             for (auto pref: ai_family_preference) {
@@ -313,7 +312,7 @@ namespace eznet {
                              * Allow socket reuse.
                              */
                             int on{1};
-                            status = setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&on, sizeof(on));
+                            status = setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on));
 
                             break;
                         }
@@ -407,8 +406,8 @@ namespace eznet {
             hints->ai_socktype = SOCK_STREAM;
             hints->ai_flags = AI_PASSIVE;
 
-            if ((status = getaddrinfo( (peer_host.length() ? peer_host.c_str() : nullptr),
-                                       peer_port.c_str(), hints.get(), &peer_info))) {
+            if ((status = getaddrinfo((peer_host.length() ? peer_host.c_str() : nullptr),
+                                      peer_port.c_str(), hints.get(), &peer_info))) {
                 freeaddrinfo(peer_info);
                 peer_info = nullptr;
                 memset(&hints, 0, sizeof(hints));
@@ -457,7 +456,7 @@ namespace eznet {
          * @brief Determine if the socket is open
          * @return true if open
          */
-        explicit operator bool () const { return sock_fd >= 0; }
+        explicit operator bool() const { return sock_fd >= 0; }
 
 
         /**
@@ -480,12 +479,12 @@ namespace eznet {
          * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
          * @return the socket fd or -1 on error
          */
-        template <typename... AiFamilyPrefs>
+        template<typename... AiFamilyPrefs>
         int connect(AiFamilyPrefs... familyPrefs) {
             list<int> prefsList{};
             (prefsList.push_back(familyPrefs), ...);
 
-            findPeerInfo( ::connect, prefsList );
+            findPeerInfo(::connect, prefsList);
 
             freeaddrinfo(peer_info);
             peer_info = nullptr;
@@ -504,12 +503,12 @@ namespace eznet {
          * @details Finds a connection specification that allows a socket to be created
          * and bound preferring the provided address family preference, if any.
          */
-        template <typename... AiFamilyPrefs>
+        template<typename... AiFamilyPrefs>
         int listen(int backlog, AiFamilyPrefs... familyPrefs) {
             list<int> prefsList{};
             (prefsList.push_back(familyPrefs), ...);
 
-            findPeerInfo( ::bind, prefsList );
+            findPeerInfo(::bind, prefsList);
 
             freeaddrinfo(peer_info);
             peer_info = nullptr;
@@ -533,7 +532,7 @@ namespace eznet {
             string result;
             char hbuf[NI_MAXHOST];
             char sbuf[NI_MAXSERV];
-            if (getnameinfo((const sockaddr*)&peer_addr, peer_len,
+            if (getnameinfo((const sockaddr *) &peer_addr, peer_len,
                             hbuf, sizeof(hbuf),
                             sbuf, sizeof(sbuf),
                             flags) == 0) {
@@ -573,7 +572,6 @@ namespace eznet {
             return error_str;
         }
     };
-
 
 }
 

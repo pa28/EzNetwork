@@ -14,23 +14,20 @@ namespace eznet {
 
     using socket_list_t = std::list<std::unique_ptr<eznet::Socket>>;
 
-    class FD_Set
-    {
+    class FD_Set {
     protected:
         int n;                          ///< The largest file descriptor set + 1;
 
-        fd_set  rd_set,                 ///< The file descriptor sets for the select call read
+        fd_set rd_set,                  ///< The file descriptor sets for the select call read
                 wr_set,                 ///< The file descriptor sets for the select call write
                 ex_set;                 ///< The file descriptor sets for the select call exception
 
     public:
-        FD_Set() : n{0}, rd_set{}, wr_set{}, ex_set{}
-        {
+        FD_Set() : n{0}, rd_set{}, wr_set{}, ex_set{} {
             clear();
         }
 
-        void clear()
-        {
+        void clear() {
             // Clear the fd_sets
             FD_ZERO(&rd_set);
             FD_ZERO(&wr_set);
@@ -60,8 +57,11 @@ namespace eznet {
         }
 
         bool isRead(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &rd_set); }
+
         bool isWrite(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &wr_set); }
+
         bool isExcept(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &ex_set); }
+
         bool isSelected(unique_ptr<Socket> &s) { return isRead(s) || isWrite(s) || isExcept(s); }
 
     };
@@ -108,7 +108,7 @@ namespace eznet {
             fd_set.clear();
 
             // Select all sockets
-            for ( auto &&s: sockets ) {
+            for (auto &&s: sockets) {
                 fd_set.set(s);
             }
 
@@ -122,7 +122,7 @@ namespace eznet {
          * @param listener An iterator selecting the listener socket
          * @return An iterator pointing to the created Socket
          */
-        auto accept(socket_list_t::iterator& listener) {
+        auto accept(socket_list_t::iterator &listener) {
             if ((*listener)->socketType() == SockListen) {
                 struct sockaddr_storage client_addr{};
                 socklen_t length = sizeof(client_addr);
@@ -142,9 +142,9 @@ namespace eznet {
          * @return true if the listener has a connection request
          */
         bool isConnectRequest(socket_list_t::iterator &listener) {
-                return listener != sockets.end() &&
-                       (*listener)->socketType() == SocketType::SockListen &&
-                        fd_set.isRead(*listener);
+            return listener != sockets.end() &&
+                   (*listener)->socketType() == SocketType::SockListen &&
+                   fd_set.isRead(*listener);
         }
 
 
@@ -189,7 +189,7 @@ namespace eznet {
         auto size() const { return sockets.size(); }        ///< the number of connected sockets
         auto empty() const { return sockets.empty(); }      ///< true if there are no connected sockets
 
-        auto pushBack(unique_ptr<Socket> socketPtr) {        ///< Push back a unique pointer to a Socket
+        auto pushBack(unique_ptr<Socket> socketPtr) {       ///< Push back a unique pointer to a Socket
             sockets.push_back(std::move(socketPtr));
             return sockets.rbegin();
         }
