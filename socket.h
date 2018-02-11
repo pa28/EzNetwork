@@ -22,6 +22,26 @@ using namespace std;
 
 namespace eznet
 {
+        /**
+         * @brief Try to determine how many characters are availalbe in the input stream without blocking.
+         * @return >0 the number of characters know to be available, 0 no information, -1 sequence unavailable
+         */
+        streamsize showmanyc() override {
+            ssize_t n = ::recv(sockfd, ibuf + pushback_size, buffer_size - pushback_size, MSG_DONTWAIT);
+
+            if (n < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    n = 0;
+                } else {
+                    return -1;
+                }
+            }
+            this->setg(ibuf, ibuf + pushback_size, ibuf + pushback_size + n);
+            return n;
+        }
+    };
+
+
     /**
      * @brief How sockets should be selected. A bitwise OR mask may be used.
      */
