@@ -266,10 +266,13 @@ namespace eznet {
         struct addrinfo *peer_info;
 
         unique_ptr<struct addrinfo> hints;  ///< Connection hints
+        unique_ptr<socket_streambuf> strmbuf;  ///< A buffer to abstract the socket as a stream
 
         struct sockaddr_storage peer_addr;  ///< Storage of the peer address used to connect
         socklen_t peer_len;                 ///< The length of the peer address storage
         SocketType socket_type;             ///< The type of socket
+
+        iostream    sock_stream;            ///< A stream attached to the socket
 
         /**
          * @brief This method does the bulk of the work to complete realization of a socket.
@@ -338,12 +341,13 @@ namespace eznet {
                 sock_fd{fd},
                 status{},
                 hints{new struct addrinfo()},
+                strmbuf{},
                 peer_info{nullptr},
                 af_type{addr->sa_family},
                 peer_addr{},
                 socket_type{SockAccept},
-                peer_len{}
-        {
+                sock_stream{nullptr},
+                peer_len{} {
             memcpy(&peer_addr, addr, len);
             peer_len = len;
         }
@@ -361,12 +365,13 @@ namespace eznet {
                 sock_fd{-1},
                 status{},
                 hints{new struct addrinfo()},
+                strmbuf{},
                 peer_info{nullptr},
                 af_type{AF_UNSPEC},
                 peer_addr{},
                 socket_type{SockUnknown},
-                peer_len{}
-        {
+                sock_stream{nullptr},
+                peer_len{} {
             init();
         }
 
@@ -420,6 +425,25 @@ namespace eznet {
          * @return the file descriptor
          */
         int fd() const { return sock_fd; }
+
+
+        /**
+         * @brief Move a unique pointer to a socket_stream into the Socket object
+         * @param sbuf an rvalue reference to the socket unique pointer
+         * @return true if the strmbuf results in an iostream that is valid
+         */
+        bool setStreamBuffer(unique_ptr<socket_streambuf> && sbuf) {
+            strmbuf = std::move(sbuf);
+            sock_stream.rdbuf(strmbuf.get());
+            return not sock_stream.bad();
+        }
+
+
+        /**
+         * @brief Access to the iostream tied to the underlying socket
+         * @return an iostream reference
+         */
+        std::iostream & iostrm() { return sock_stream; }
 
 
         /**

@@ -32,14 +32,15 @@ int main() {
                     auto newSock = server.accept(first);
                     if ((*newSock)->fd() >= 0) {
                         cout << "New connection " << (*newSock)->getPeerName() << endl;
+                        run = (*newSock)->setStreamBuffer(make_unique<socket_streambuf>((*newSock)->fd()));
                     }
                 } else if (server.isRead(first)) {
                     char buf[BUFSIZ];
-                    ssize_t n = ::recv((*first)->fd(), buf, sizeof(buf), 0);
+                    ssize_t  n = (*first)->iostrm().readsome(buf, sizeof(buf));
                     if (n > 0) {
                         cout.write(buf, n);
                     } else {
-                        cout << "Client " <<(*first)->getPeerName() << " disconnected." << endl;
+                        cout << "Client " << (*first)->getPeerName() << " disconnected." << endl;
                         (*first)->close();
                     }
                 }
