@@ -158,28 +158,6 @@ namespace eznet
         }
     };
 
-/*
-    template <>
-    struct txval<const char *>
-    {
-        std::string str;
-
-        txval() = delete;
-        explicit txval(const char *s) : str{s} {}
-        std::ostream& doXmit(std::ostream &os) const {
-            os.put(txval_policy::STX);
-            for (auto c: str) {
-                if (c == txval_policy::STX || c == txval_policy::ETX || c == txval_policy::SO) {
-                    os.put(txval_policy::SO);
-                }
-                os.put(c);
-            }
-            os.put(txval_policy::ETX);
-            return os;
-        }
-    };
-*/
-
     template <typename T>
     std::ostream& operator<<(std::ostream &os, const txval<T> &x) {
         return x.doXmit(os);
