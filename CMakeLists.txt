@@ -24,3 +24,5 @@ else (DOXYGEN_FOUND)
 endif (DOXYGEN_FOUND)
 
 add_executable(ServerTest serverTest.cpp socket.h server.h)
+
+add_executable(ManipTest iomanip.h manipTest.cpp)

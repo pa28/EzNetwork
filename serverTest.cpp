@@ -1,6 +1,8 @@
 #include <iostream>
 #include <algorithm>
+#include <iomanip>
 #include "server.h"
+#include "iomanip.h"
 
 using namespace std;
 using namespace eznet;
