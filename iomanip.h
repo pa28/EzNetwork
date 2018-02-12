@@ -113,11 +113,13 @@ namespace eznet
         static char STX;
         static char ETX;
         static char SO;
+        static char US;
     };
 
     char txval_policy::STX = 0x02;
     char txval_policy::ETX = 0x03;
     char txval_policy::SO = 0x0E;
+    char txval_policy::US = 0x1f;
 
     template <typename T>
     struct txval
@@ -252,6 +254,17 @@ namespace eznet
         return r.doRecv(is);
     }
 
+
+    std::ostream& txsep(std::ostream &os) {
+        return os.put(txval_policy::US);
+    }
+
+
+    std::istream& rxsep(std::istream &is) {
+        if (is.get() != txval_policy::US)
+            throw logic_error("Expecting unit separator");
+        return is;
+    }
 }
 
 #endif //EZNETWORK_IOMANIP_H

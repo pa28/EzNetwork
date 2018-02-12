@@ -21,6 +21,7 @@ int main() {
     txval_policy::STX = '<';
     txval_policy::ETX = '>';
     txval_policy::SO = '\\';
+    txval_policy::US = ',';
 
     std::cout << "Hello, World!" << std::endl;
 
@@ -56,8 +57,8 @@ int main() {
      */
     stringstream ss;
 
-    ss << txval_range(a16.begin(), a16.end())
-       << txval_range(a32.begin(), a32.end())
+    ss << txval_range(a16.begin(), a16.end()) << txsep
+       << txval_range(a32.begin(), a32.end()) << txsep
        << txval("Hello World!");
 
     /*
@@ -69,8 +70,8 @@ int main() {
      * Receive the data from the string stream
      */
     string hello;
-    ss >> rxval_range(r16.begin(), r16.end())
-       >> rxval_range(r32.begin(), r32.end())
+    ss >> rxval_range(r16.begin(), r16.end()) >> rxsep
+       >> rxval_range(r32.begin(), r32.end()) >> rxsep
        >> rxval(hello);
 
     /*
