@@ -90,7 +90,8 @@ namespace eznet {
      * @brief The default server policy class
      * @details A server policy class is used to set library default behavior at compile time.
      *
-     * - _acceptFlags_ Flags set on all client connections accepted by the server
+     * - *acceptFlags* Flags set on all client connections accepted by the server
+     * - *push_front*  A method that provides the same semantics across standard library containers for push_front.
      */
 
     template <class T>
@@ -107,6 +108,20 @@ namespace eznet {
         using socket_ptr_t = T;
         using socket_container_t = std::list<T>;
         using socket_iterator_t = typename socket_container_t::iterator;
+
+
+        /**
+         * @brief Provide a method to prepend a socket to the socket container, and return an iterator to the new socket.
+         * @param sockets The socket container
+         * @param socketPtr A pointer to the new socket
+         * @return An iterator pointing to the new socket in the container.
+         * @details This method is required because not all standard library containers return an iterator from
+         * the push_front method.
+         */
+        socket_iterator_t push_front(socket_container_t &sockets, socket_ptr_t socketPtr) {
+            sockets.push_front(std::move(socketPtr));
+            return sockets.begin();
+        }
     };
 
     /**
@@ -225,9 +240,13 @@ namespace eznet {
         bool isSelected(typename Policy::socket_iterator_t &listener) { return fd_set.isSelected(*listener); }
 
 
-        auto push_front(typename Policy::socket_ptr_t socketPtr) {       ///< Prepend a pointer to a Socket
-            sockets.push_front(std::move(socketPtr));
-            return sockets.begin();
+        /**
+         * @brief Move a new socket into the front of the socket container, the container takes ownership of the socket
+         * @param socketPtr A pointer to the socket to move.
+         * @return An iterator pointing to the socket pointer in the container
+         */
+        auto push_front(typename Policy::socket_ptr_t socketPtr) {
+            return Policy::push_front(sockets, std::move(socketPtr));
         }
 
         typename Policy::socket_container_t sockets;          ///< A list of accepted connection sockets
