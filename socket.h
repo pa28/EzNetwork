@@ -528,7 +528,7 @@ namespace eznet {
          * @details For Sockets of type SockListen the 'peer' is the hostname of the interface the
          * Socket is listening to. For other types it is the hostname of the remote machine.
          */
-        string getPeerName(int flags = NI_NOFQDN | NI_NUMERICSERV) {
+        string getPeerName(unsigned int flags = NI_NOFQDN | NI_NUMERICSERV) {
             string result;
             char hbuf[NI_MAXHOST];
             char sbuf[NI_MAXSERV];
