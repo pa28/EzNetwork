@@ -500,12 +500,18 @@ namespace eznet {
          * @tparam AiFamilyPrefs A template parameter pack for a list of AF families
          * @param backlog the parameter passed to listen(2) as backlog
          * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
-         * @return the socket fd or -1 on error
+         * @return -1 on error, 0 on success
          * @details Finds a connection specification that allows a socket to be created
-         * and bound preferring the provided address family preference, if any.
+         * and bound preferring the provided address family preference, if any. If the
+         * socket fd is successfully created this method also calls:
+         *  - socketFlags(true, O_NONBLOCK)
+         *  - closeOnExec(true)
          */
         template<typename... AiFamilyPrefs>
         int listen(int backlog, AiFamilyPrefs... familyPrefs) {
+            int socketFlagSet = O_NONBLOCK;
+            bool closeExec = true;
+
             list<int> prefsList{};
             (prefsList.push_back(familyPrefs), ...);
 
@@ -514,11 +520,15 @@ namespace eznet {
             freeaddrinfo(peer_info);
             peer_info = nullptr;
 
-            if (sock_fd >= 0)
+            if (sock_fd >= 0) {
                 ::listen(sock_fd, backlog);
 
-            socket_type = SockListen;
-            return sock_fd;
+                socket_type = SockListen;
+
+                return std::min(socketFlags(true, socketFlagSet), closeOnExec(closeExec));
+            }
+
+            return -1;
         }
 
 
