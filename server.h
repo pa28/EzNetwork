@@ -12,8 +12,7 @@ using namespace std;
 
 namespace eznet {
 
-    using socket_list_t = std::list<std::unique_ptr<eznet::Socket>>;
-
+    template <class SocketContainer, class SocketPtr>
     class FD_Set {
     protected:
         int n;                          ///< The largest file descriptor set + 1;
@@ -36,11 +35,11 @@ namespace eznet {
             n = 0;
         }
 
-        void set(const socket_list_t::iterator sock) {
+        void set(const typename SocketContainer::iterator sock) {
             set(*sock);
         }
 
-        void set(unique_ptr<Socket> &sock) {
+        void set(SocketPtr &sock) {
             if (sock->selectClients != SC_None) {
                 if (sock->selectClients & SC_Read)
                     FD_SET(sock->fd(), &rd_set);
@@ -56,20 +55,46 @@ namespace eznet {
             return ::select(n, &rd_set, &wr_set, &ex_set, timeout);
         }
 
-        bool isRead(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &rd_set); }
+        bool isRead(SocketPtr &s) { return FD_ISSET((*s).fd(), &rd_set); }
 
-        bool isWrite(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &wr_set); }
+        bool isWrite(SocketPtr &s) { return FD_ISSET((*s).fd(), &wr_set); }
 
-        bool isExcept(unique_ptr<Socket> &s) { return FD_ISSET((*s).fd(), &ex_set); }
+        bool isExcept(SocketPtr &s) { return FD_ISSET((*s).fd(), &ex_set); }
 
-        bool isSelected(unique_ptr<Socket> &s) { return isRead(s) || isWrite(s) || isExcept(s); }
+        bool isSelected(SocketPtr &s) { return isRead(s) || isWrite(s) || isExcept(s); }
 
+    };
+
+
+    /**
+     * @brief The default server policy class
+     * @details A server policy class is used to set library default behavior at compile time.
+     *
+     * - _acceptFlags_ Flags set on all client connections accepted by the server
+     */
+
+    template <class T>
+    class DefaultServerPolicy
+    {
+    public:
+
+        /**
+         * @brief Return a bitwise or of the flags to pass as flags to accept4(2)
+         * @return the flag mask
+         */
+        int acceptFlags = SOCK_CLOEXEC;
+
+        using socket_ptr_t = T;
+        using socket_container_t = std::list<T>;
+        using socket_iterator_t = typename socket_container_t::iterator;
     };
 
     /**
      * @brief An abstraction of a network server.
      */
-    class Server {
+
+    template <class Policy = DefaultServerPolicy<std::unique_ptr<eznet::Socket>>>
+    class Server : private Policy {
     public:
 
         string errorString;
@@ -122,12 +147,12 @@ namespace eznet {
          * @param listener An iterator selecting the listener socket
          * @return An iterator pointing to the created Socket
          */
-        auto accept(socket_list_t::iterator &listener) {
+        auto accept(typename Policy::socket_iterator_t &listener) {
             if ((*listener)->socketType() == SockListen) {
                 struct sockaddr_storage client_addr{};
                 socklen_t length = sizeof(client_addr);
 
-                int clientfd = ::accept((*listener)->fd(), (struct sockaddr *) &client_addr, &length);
+                int clientfd = ::accept4((*listener)->fd(), (struct sockaddr *) &client_addr, &length, Policy::acceptFlags);
                 newSockets.push_back(std::make_unique<Socket>(clientfd, (struct sockaddr *) &client_addr, length));
                 return newSockets.rbegin();
             }
@@ -141,7 +166,7 @@ namespace eznet {
          * @param listener An iterator selecting the listener socket
          * @return true if the listener has a connection request
          */
-        bool isConnectRequest(socket_list_t::iterator &listener) {
+        bool isConnectRequest(typename Policy::socket_iterator_t &listener) {
             return listener != sockets.end() &&
                    (*listener)->socketType() == SocketType::SockListen &&
                    fd_set.isRead(*listener);
@@ -153,7 +178,7 @@ namespace eznet {
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isRead(socket_list_t::iterator &c) { return fd_set.isRead(*c); }
+        bool isRead(typename Policy::socket_iterator_t &c) { return fd_set.isRead(*c); }
 
 
         /**
@@ -161,7 +186,7 @@ namespace eznet {
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isWrite(socket_list_t::iterator &c) { return fd_set.isWrite(*c); }
+        bool isWrite(typename Policy::socket_iterator_t &c) { return fd_set.isWrite(*c); }
 
 
         /**
@@ -169,7 +194,7 @@ namespace eznet {
          * @param c an iterator selecting a socket
          * @return true if selected
          */
-        bool isExcept(socket_list_t::iterator &c) { return fd_set.isExcept(*c); }
+        bool isExcept(typename Policy::socket_iterator_t &c) { return fd_set.isExcept(*c); }
 
 
         /**
@@ -177,27 +202,19 @@ namespace eznet {
          * @param listener an iterator selecting a socket
          * @return true if selected
          */
-        bool isSelected(socket_list_t::iterator &listener) { return fd_set.isSelected(*listener); }
+        bool isSelected(typename Policy::socket_iterator_t &listener) { return fd_set.isSelected(*listener); }
 
 
-        auto begin() { return sockets.begin(); }            ///< first connected socket iterator
-        auto end() { return sockets.end(); }                ///< last connected socket iterator
-
-        auto cbegin() const { return sockets.cbegin(); }    ///< const first connected socket iterator
-        auto cend() const { return sockets.cend(); }        ///< const last connected socket iterator
-
-        auto size() const { return sockets.size(); }        ///< the number of connected sockets
-        auto empty() const { return sockets.empty(); }      ///< true if there are no connected sockets
-
-        auto pushBack(unique_ptr<Socket> socketPtr) {       ///< Push back a unique pointer to a Socket
-            sockets.push_back(std::move(socketPtr));
-            return sockets.rbegin();
+        auto push_front(typename Policy::socket_ptr_t socketPtr) {       ///< Prepend a pointer to a Socket
+            sockets.push_front(std::move(socketPtr));
+            return sockets.begin();
         }
 
+        typename Policy::socket_container_t sockets;          ///< A list of accepted connection sockets
+
     protected:
-        socket_list_t sockets;          ///< A list of accepted connection sockets
-        socket_list_t newSockets;       ///< A list of sockets accepted
-        FD_Set fd_set;                  ///< An object containing the fd_sets used
+        typename Policy::socket_container_t newSockets;       ///< A list of sockets accepted
+        FD_Set<typename Policy::socket_container_t, typename Policy::socket_ptr_t> fd_set;   ///< An object containing the fd_sets used
     };
 }
 

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <iomanip>
+#include "name_that_type.h"
 #include "server.h"
 #include "iomanip.h"
 
@@ -13,7 +14,7 @@ int main() {
     Server server{};
 
     // Make a socket to bind to any address at port 8000 and add it to the server
-    auto serverListen = server.pushBack(make_unique<Socket>("", "8000"));
+    auto serverListen = server.push_front(make_unique<Socket>("", "8000"));
 
     // Listen to IPV6 which will also listen to IPV4
     if ((*serverListen)->listen(10, AF_INET6) < 0) {
@@ -27,7 +28,7 @@ int main() {
 
     while (run) {
         int s = server.select();
-        for (auto first = server.begin(); first != server.end() && s > 0; ++first) {
+        for (auto first = server.sockets.begin(); first != server.sockets.end() && s > 0; ++first) {
             if (server.isSelected(first)) {
                 --s;
                 if (server.isConnectRequest(first)) {
