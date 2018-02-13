@@ -10,6 +10,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <unistd.h>
+#include <fcntl.h>
 #include <list>
 #include <utility>
 #include <sys/types.h>
@@ -540,6 +541,51 @@ namespace eznet {
             }
 
             return result;
+        }
+
+
+        /**
+         * @brief Uses fcntl(2) to set or clearflags on the socket file descriptor.
+         * @param set When true set the specified flags, otherwise clear.
+         * @param flags An or mask of flags to set or clear
+         * @return -1 on error, 0 on success, errno is set to indicate the error encountered.
+         */
+        int socketFlags(bool set, int flags) {
+            if (sock_fd < 0) {
+                errno = EBADF;
+                return -1;
+            }
+
+            int oflags = fcntl(sock_fd, F_GETFL);
+            if (oflags < 0)
+                return -1;
+
+            if (fcntl(sock_fd, F_SETFL, (set ? oflags | flags : oflags & (~flags))))
+                return -1;
+
+            return 0;
+        }
+
+
+        /**
+         * @brief Uses fcntl(2) to set or clear FD_CLOEXEC flag
+         * @param close When true set the flag, otherwise clear
+         * @return -1 on error, 0 on success, errno is set to indicate the error encountered.
+         */
+        int closeOnExec(bool close) {
+            if (sock_fd < 0) {
+                errno = EBADF;
+                return -1;
+            }
+
+            int oflags = fcntl(sock_fd, F_GETFD);
+            if (oflags < 0)
+                return -1;
+
+            if (fcntl(sock_fd, F_SETFD, (close ? oflags | FD_CLOEXEC : oflags & (~FD_CLOEXEC))))
+                return -1;
+
+            return 0;
         }
 
 
