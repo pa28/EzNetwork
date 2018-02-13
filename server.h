@@ -26,6 +26,10 @@ namespace eznet {
             clear();
         }
 
+
+        /**
+         * @brief Clear all file descriptor sets.
+         */
         void clear() {
             // Clear the fd_sets
             FD_ZERO(&rd_set);
@@ -35,10 +39,20 @@ namespace eznet {
             n = 0;
         }
 
+
+        /**
+         * @brief Given a socket container iterator, set the socket selection criteria
+         * @param sock the iterator
+         */
         void set(const typename SocketContainer::iterator sock) {
             set(*sock);
         }
 
+
+        /**
+         * Given a socket pointer, set the socket selection criteria
+         * @param sock the pointer
+         */
         void set(SocketPtr &sock) {
             if (sock->selectClients != SC_None) {
                 if (sock->selectClients & SC_Read)
@@ -51,17 +65,23 @@ namespace eznet {
             }
         }
 
+
+        /**
+         * @brief Make the select call
+         * @param timeout An optional timeout value
+         * @return The number of file descriptors selected.
+         */
         int select(struct timeval *timeout = nullptr) {
             return ::select(n, &rd_set, &wr_set, &ex_set, timeout);
         }
 
-        bool isRead(SocketPtr &s) { return FD_ISSET((*s).fd(), &rd_set); }
+        bool isRead(SocketPtr &s) { return FD_ISSET((*s).fd(), &rd_set); }      ///< Test for read selection
 
-        bool isWrite(SocketPtr &s) { return FD_ISSET((*s).fd(), &wr_set); }
+        bool isWrite(SocketPtr &s) { return FD_ISSET((*s).fd(), &wr_set); }     ///< Test for write selection
 
-        bool isExcept(SocketPtr &s) { return FD_ISSET((*s).fd(), &ex_set); }
+        bool isExcept(SocketPtr &s) { return FD_ISSET((*s).fd(), &ex_set); }    ///< Test for exception selection
 
-        bool isSelected(SocketPtr &s) { return isRead(s) || isWrite(s) || isExcept(s); }
+        bool isSelected(SocketPtr &s) { return isRead(s) || isWrite(s) || isExcept(s); }    ///< Test for any selection
 
     };
 
