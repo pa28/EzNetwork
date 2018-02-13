@@ -233,7 +233,7 @@ namespace eznet {
 
 
         /**
-         * @brief Deterimin if a socket is selected for any state
+         * @brief Determine if a socket is selected for any state
          * @param listener an iterator selecting a socket
          * @return true if selected
          */
