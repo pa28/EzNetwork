@@ -55,16 +55,17 @@ int main(int argc, char ** argv) {
 
         if (s > 0) {
             for (auto &&sock: server.sockets) {
-                if (server.isSelected(sock)) {
-                    if (server.isConnectRequest(sock)) {
-                        auto newSock = server.accept(sock);
-                        if ((*newSock)->fd() >= 0) {
-                            cout << "New connection " << (*newSock)->getPeerName() << endl;
-                            (*newSock)->selectClients = SC_None;
-                            run = (*newSock)->setStreamBuffer(make_unique<socket_streambuf>((*newSock)->fd()));
-                            (*newSock)->sock_future = std::async(doClient, (*newSock).get());
-                        }
+                if (server.isConnectRequest(sock)) {
+                    auto newSock = server.accept(sock);
+                    if ((*newSock)->fd() >= 0) {
+                        cout << "New connection " << (*newSock)->getPeerName() << endl;
+                        (*newSock)->selectClients = SC_None;
+                        run = (*newSock)->setStreamBuffer(make_unique<socket_streambuf>((*newSock)->fd()));
+                        (*newSock)->sock_future = std::async(doClient, (*newSock).get());
                     }
+                    --s;
+                    if (s == 0)
+                        break;
                 }
             }
         }
