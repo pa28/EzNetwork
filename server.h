@@ -183,11 +183,22 @@ namespace eznet {
          * @return An iterator pointing to the created Socket
          */
         auto accept(typename Policy::socket_iterator_t &listener) {
-            if ((*listener)->socketType() == SockListen) {
+            return accept(*listener);
+        }
+
+
+        /**
+         * @brief Accept a connection request on a listener socket, add the accepted connection
+         * to the connection list.
+         * @param listener A pointer to the listener socket
+         * @return An iterator pointing to the created Socket
+         */
+        auto accept(typename Policy::socket_ptr_t &listener) {
+            if (listener->socketType() == SockListen) {
                 struct sockaddr_storage client_addr{};
                 socklen_t length = sizeof(client_addr);
 
-                int clientfd = ::accept4((*listener)->fd(), (struct sockaddr *) &client_addr, &length, Policy::acceptFlags);
+                int clientfd = ::accept4(listener->fd(), (struct sockaddr *) &client_addr, &length, Policy::acceptFlags);
                 newSockets.push_back(std::make_unique<Socket>(clientfd, (struct sockaddr *) &client_addr, length));
                 return newSockets.rbegin();
             }
@@ -197,19 +208,30 @@ namespace eznet {
 
 
         /**
-         * @brief Determin if a listener socket has been selected due to a connection request
+         * @brief Determine if a listener socket has been selected due to a connection request
          * @param listener An iterator selecting the listener socket
          * @return true if the listener has a connection request
          */
         bool isConnectRequest(typename Policy::socket_iterator_t &listener) {
-            return listener != sockets.end() &&
-                   (*listener)->socketType() == SocketType::SockListen &&
-                   fd_set.isRead(*listener);
+            if (listener != sockets.end())
+                return isConnectRequest(*listener);
+            return false;
         }
 
 
         /**
-         * @brief Determin if a socket is selected for read
+         * @brief Determine if a listener socket has been selected due to a connection request
+         * @param listener A pointer to the listener socket
+         * @return true if the listener has a connection request
+         */
+        bool isConnectRequest(typename Policy::socket_ptr_t &listener) {
+            return listener->socketType() == SocketType::SockListen &&
+                   fd_set.isRead(listener);
+        }
+
+
+        /**
+         * @brief Determine if a socket is selected for read
          * @param c an iterator selecting a socket
          * @return true if selected
          */
@@ -217,11 +239,27 @@ namespace eznet {
 
 
         /**
-         * @brief Determin if a socket is selected for write
+         * @brief Determine if a socket is selected for read
+         * @param c a pointer to a socket
+         * @return true if selected
+         */
+        bool isRead(typename Policy::socket_ptr_t &c) { return fd_set.isRead(c); }
+
+
+        /**
+         * @brief Determine if a socket is selected for write
          * @param c an iterator selecting a socket
          * @return true if selected
          */
         bool isWrite(typename Policy::socket_iterator_t &c) { return fd_set.isWrite(*c); }
+
+
+        /**
+         * @brief Determine if a socket is selected for write
+         * @param c a pointer to a socket
+         * @return true if selected
+         */
+        bool isWrite(typename Policy::socket_ptr_t &c) { return fd_set.isWrite(c); }
 
 
         /**
@@ -233,11 +271,27 @@ namespace eznet {
 
 
         /**
-         * @brief Determine if a socket is selected for any state
-         * @param listener an iterator selecting a socket
+         * @brief Determine if a socket is selected for exception
+         * @param c a pointer to a socket
          * @return true if selected
          */
-        bool isSelected(typename Policy::socket_iterator_t &listener) { return fd_set.isSelected(*listener); }
+        bool isExcept(typename Policy::socket_ptr_t &c) { return fd_set.isExcept(c); }
+
+
+        /**
+         * @brief Determine if a socket is selected for any state
+         * @param s an iterator selecting a socket
+         * @return true if selected
+         */
+        bool isSelected(typename Policy::socket_iterator_t &s) { return fd_set.isSelected(*s); }
+
+
+        /**
+         * @brief Determine if a socket is selected for any state
+         * @param s a pointer to the socket
+         * @return
+         */
+        bool isSelected(typename Policy::socket_ptr_t &s) { return fd_set.isSelected(s); }
 
 
         /**

@@ -109,7 +109,7 @@ using namespace eznet;
         int s = server.select();
 
         // Loop over the Sockets contained in the server and service each one that needs it
-        for (auto first = server.sockets.begin(); first != server.sockets.end() && s > 0; ++first) {
+        for (auto &&first: server.sockets) {
             if (server.isSelected(first)) {       // Socket needs service
                 --s;                              // Decrement count so we may be able to exit for loop early
 
@@ -124,12 +124,12 @@ using namespace eznet;
                 // Otherwise test to see if the Socket has input to process
                 } else if (server.isRead(first)) {
                     char buf[BUFSIZ];
-                    ssize_t  n = (*first)->iostrm().readsome(buf, sizeof(buf));   // non-blocking read
+                    ssize_t  n = first->iostrm().readsome(buf, sizeof(buf));   // non-blocking read
                     if (n > 0) {
                         cout.write(buf, n);
                     } else {
-                        cout << "Client " << (*first)->getPeerName() << " disconnected." << endl;
-                        (*first)->close();                                        // close connection
+                        cout << "Client " << first->getPeerName() << " disconnected." << endl;
+                        first->close();                                        // close connection
                     }
                 }
             }
@@ -160,7 +160,7 @@ int main() {
 
     while (run) {
         int s = server.select();
-        for (auto first = server.sockets.begin(); first != server.sockets.end() && s > 0; ++first) {
+        for (auto &&first: server.sockets) {
             if (server.isSelected(first)) {
                 --s;
                 if (server.isConnectRequest(first)) {
@@ -171,12 +171,12 @@ int main() {
                     }
                 } else if (server.isRead(first)) {
                     char buf[BUFSIZ];
-                    ssize_t  n = (*first)->iostrm().readsome(buf, sizeof(buf));
+                    ssize_t  n = first->iostrm().readsome(buf, sizeof(buf));
                     if (n > 0) {
                         cout.write(buf, n);
                     } else {
-                        cout << "Client " << (*first)->getPeerName() << " disconnected." << endl;
-                        (*first)->close();
+                        cout << "Client " << first->getPeerName() << " disconnected." << endl;
+                        first->close();
                     }
                 }
             }
