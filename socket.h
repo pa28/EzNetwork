@@ -477,7 +477,7 @@ namespace eznet {
                  */
                 int on{1};
                 status = setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on));
-                
+
                 return std::min(socketFlags(true, socketFlagSet), closeOnExec(closeExec));
             }
 

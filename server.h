@@ -146,12 +146,27 @@ namespace eznet {
 
         /**
          * @brief Call select on all current sockets associated with the server
+         * @tparam Duration template parameter for duration of timeout
+         * @param duration A std::chrono duration to use as the timeout
+         * @return the value returned from ::select()
+         */
+        template <typename Duration>
+        int select(Duration &&duration) {
+            struct timeval timeout{};
+
+            std::chrono::seconds const sec = std::chrono::duration_cast<std::chrono::seconds>(duration);
+            timeout.tv_sec = sec.count();
+            timeout.tv_usec = std::chrono::duration_cast<std::chrono::microseconds>(duration - sec).count();
+            return select(&timeout);
+        }
+
+        /**
+         * @brief Call select on all current sockets associated with the server
          * @param selectClients What operations to select the clients on
          * @param timeout A timeout value in a timeval struct or nullptr for no timeout
          * @return the value returned from ::select()
          */
-        int select(SelectClients selectClients = SC_All,
-                   struct timeval *timeout = nullptr) {
+        int select(struct timeval *timeout = nullptr) {
             // Move new sockets onto the list.
             for (auto &&ns: newSockets) {
                 sockets.push_back(std::move(ns));
