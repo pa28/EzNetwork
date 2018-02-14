@@ -170,58 +170,6 @@ namespace eznet {
         SHUT_RDWR = 2,  ///< Further reception and transmission disabled
     };
 
-    /**
-       @mainpage
-
-       # Socket #
-
-       The Socket class provides for the creation and lifetime management of the three main types
-       of stream sockets used by applications:
-        - SockListen: Used by servers to accept connections from clients
-        - SockConnect: Used by clients to connect to servers
-        - SockAccept: The server side of a SockConnect connection
-
-       ## SockAccept ##
-
-       The creation of an accept socket is the simplest. When a call to ::accept(2) returns
-       a valid file descriptor and peer address these values are passed to the constructor with
-       the a prototype:
-
-       `Socket(int fd, struct sockaddr *addr, socklen_t len)`
-
-       This encapsulates the socket data in a Socket object.
-
-       ## SockConnect ##
-
-       The creation of a connection socket starts with the construction of a Socket object with
-       the second constructor:
-
-       `Socket(std::string host, std::string port)`
-
-       _host_ provides the host name or address of the host the socket will connect to.
-
-       _port_ provides the service name or port number the socket will connect to.
-
-       The connection is established using the `connect(int ai_family_preference = AF_UNSPEC)` method.
-       This converts the `host` and `port` parameters into a list of address specifications which may
-       be any of the supported families available. The list is iterated until a connection in the
-       family specified by `ai_family_preference` that accepts a connection is found. If `ai_family_preference`
-       is `AF_UNSPEC` then all connections are tried. If one of the supported families is specified
-       and none of the matching connections succeed all others are tried. If none of the potential
-       connections succeed the method returns -1, if one succeeds the connection file descriptor
-       is returned.
-
-       ## SockListen ##
-
-       The creation of a listener socket follows the the connection socket creation flow except for
-       the following differences:
-         - _host_ is resolved to map to an interface on the local system. If _host_ is an empty string
-         it resolves to _any_ address.
-         - The method `listen(int backlog, int ai_family_preference = AF_UNSPEC)` is called instead of `connect()`
-
-       The IPV6 _any_ address is special in that it will accept connections using both IPV6 and IPV4
-     */
-
     class Socket {
         friend class socket_streambuf;
 
