@@ -122,6 +122,10 @@ namespace eznet {
             sockets.push_front(std::move(socketPtr));
             return sockets.begin();
         }
+
+        socket_iterator_t erase(socket_container_t &sockets, socket_iterator_t itr) {
+            return sockets.erase(itr);
+        }
     };
 
     /**
@@ -157,7 +161,7 @@ namespace eznet {
             auto socket = sockets.begin();
             while (socket != sockets.end()) {
                 if ((*socket)->fd() < 0) {
-                    socket = sockets.erase(socket);
+                    socket = Policy::erase(sockets,socket);
                 } else {
                     ++socket;
                 }
