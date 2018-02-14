@@ -32,3 +32,7 @@ add_executable(ManipTest iomanip.h manipTest.cpp name_that_type.h)
 add_executable(AsyncServer asyncServerTest.cpp socket.h server.h name_that_type.h)
 
 target_link_libraries (AsyncServer ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(AsyncNet basic_socket.h asyncNet.cpp)
+
+target_link_libraries (AsyncNet ${CMAKE_THREAD_LIBS_INIT})
