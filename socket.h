@@ -257,12 +257,6 @@ namespace eznet {
                             peer_len = peer->ai_addrlen;
                             af_type = peer->ai_family;
 
-                            /**
-                             * Allow socket reuse.
-                             */
-                            int on{1};
-                            status = setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on));
-
                             break;
                         }
                     }
@@ -473,6 +467,12 @@ namespace eznet {
 
                 socket_type = SockListen;
 
+                /**
+                 * Allow socket reuse.
+                 */
+                int on{1};
+                status = setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on));
+                
                 return std::min(socketFlags(true, socketFlagSet), closeOnExec(closeExec));
             }
 
