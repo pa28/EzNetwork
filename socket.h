@@ -9,6 +9,7 @@
 #include <memory>
 #include <cstring>
 #include <stdexcept>
+#include <future>
 #include <unistd.h>
 #include <fcntl.h>
 #include <list>
@@ -222,6 +223,10 @@ namespace eznet {
 
         iostream    sock_stream;            ///< A stream attached to the socket
 
+    public:
+        future<int> sock_future;            ///< Storage for a future returned if asynchronous processing is used.
+
+    protected:
         /**
          * @brief This method does the bulk of the work to complete realization of a socket.
          * @param bind_connect either ::bind() for a server or ::connect() for a client.
