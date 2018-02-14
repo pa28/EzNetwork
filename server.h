@@ -123,6 +123,13 @@ namespace eznet {
             return sockets.begin();
         }
 
+
+        /**
+         * @brief Provide erase semantics
+         * @param sockets The socket container
+         * @param itr An iterator selecting a Socket to erase
+         * @return The next iterator or end()
+         */
         socket_iterator_t erase(socket_container_t &sockets, socket_iterator_t itr) {
             return sockets.erase(itr);
         }
