@@ -73,9 +73,9 @@ namespace async_net {
         /**
          * @brief Create a socket object to hold an accepted connection.
          */
-        explicit basic_socket(int fd,                     ///< The accepted connection file descriptor
-                              struct sockaddr *addr,      ///< The peer address
-                              socklen_t len               ///< The size of the peer address
+        basic_socket(int fd,                     ///< The accepted connection file descriptor
+                     struct sockaddr *addr,      ///< The peer address
+                     socklen_t len               ///< The size of the peer address
         ) :
                 peer_host{},
                 peer_port{},
@@ -102,73 +102,6 @@ namespace async_net {
             memcpy(&peer_addr, &other.peer_addr, peer_len);
         }
 
-    };
-
-    struct local_socket : public basic_socket {
-    public:
-        local_socket(const string &host, const string &port) :
-                basic_socket{host, port} {
-        }
-
-
-        /**
-         * @brief Complete a socket as a connection or client socket
-         * @tparam AiFamilyPrefs A template parameter pack for a list of AF families
-         * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
-         * @return the socket fd or -1 on error
-         */
-        template<typename... AiFamilyPrefs>
-        int connect(AiFamilyPrefs... familyPrefs) {
-            list<int> prefsList{};
-            (prefsList.push_back(familyPrefs), ...);
-
-            findPeerInfo(::connect, prefsList);
-
-            socket_type = SockConnect;
-            return sock_fd;
-        }
-
-
-        /**
-         * @brief Complet a socket as a listen or server socket
-         * @tparam AiFamilyPrefs A template parameter pack for a list of AF families
-         * @param backlog the parameter passed to listen(2) as backlog
-         * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
-         * @return -1 on error, 0 on success
-         * @details Finds a connection specification that allows a socket to be created
-         * and bound preferring the provided address family preference, if any. If the
-         * socket fd is successfully created this method also calls:
-         *  - socketFlags(true, O_NONBLOCK)
-         *  - closeOnExec(true)
-         */
-        template<typename... AiFamilyPrefs>
-        int listen(int backlog, AiFamilyPrefs... familyPrefs) {
-            int socketFlagSet = O_NONBLOCK;
-            bool closeExec = true;
-
-            list<int> prefsList{};
-            (prefsList.push_back(familyPrefs), ...);
-
-            findPeerInfo(::bind, prefsList);
-
-            if (sock_fd >= 0) {
-                ::listen(sock_fd, backlog);
-
-                socket_type = SockListen;
-
-                /**
-                 * Allow socket reuse.
-                 */
-                int on{1};
-                status = setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on));
-
-                return std::min(socketFlags(true, socketFlagSet), closeOnExec(closeExec));
-            }
-
-            return -1;
-        }
-
-
         /**
          * @brief Generate a peer address string for the socket.
          * @param flags Flags that will be passed to getnameinfo()
@@ -188,6 +121,15 @@ namespace async_net {
             }
 
             return result;
+        }
+
+
+        /**
+         * @brief Get the socket file descriptor
+         * @return the socket file descriptor
+         */
+        int fd() {
+            return sock_fd;
         }
 
 
@@ -254,6 +196,102 @@ namespace async_net {
          */
         int shutdown(SocketHow how) {
             return ::shutdown(sock_fd, how);
+        }
+
+
+        /**
+         * @brief Get the type of the socket
+         * @return A SocketType value
+         */
+        SocketType socketType() const { return socket_type; }
+
+
+        /**
+         * @brief Determine if the socket is open
+         * @return true if open
+         */
+        explicit operator bool() const { return sock_fd >= 0; }
+
+
+        /**
+         * @brief Get the last set status return value for the socket
+         * @return an integer status value
+         */
+        int getStatus() const { return status; }
+
+
+        /**
+         * @brief Set a status value returned by a function called on the socket
+         * @param s an integer status value
+         */
+        void setStatus(int s) { status = s; }
+
+    };
+
+    class local_socket : public basic_socket {
+    public:
+        local_socket(int fd, struct sockaddr *addr, socklen_t addr_len) : basic_socket(fd, addr, addr_len) {}
+
+        local_socket(const string &host, const string &port) :
+                basic_socket{host, port} {
+        }
+
+
+        /**
+         * @brief Complete a socket as a connection or client socket
+         * @tparam AiFamilyPrefs A template parameter pack for a list of AF families
+         * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
+         * @return the socket fd or -1 on error
+         */
+        template<typename... AiFamilyPrefs>
+        int connect(AiFamilyPrefs... familyPrefs) {
+            list<int> prefsList{};
+            (prefsList.push_back(familyPrefs), ...);
+
+            findPeerInfo(::connect, prefsList);
+
+            socket_type = SockConnect;
+            return sock_fd;
+        }
+
+
+        /**
+         * @brief Complet a socket as a listen or server socket
+         * @tparam AiFamilyPrefs A template parameter pack for a list of AF families
+         * @param backlog the parameter passed to listen(2) as backlog
+         * @param familyPrefs A list of AF family values AF_INET6, AF_INET, AF_UNSPEC
+         * @return -1 on error, 0 on success
+         * @details Finds a connection specification that allows a socket to be created
+         * and bound preferring the provided address family preference, if any. If the
+         * socket fd is successfully created this method also calls:
+         *  - socketFlags(true, O_NONBLOCK)
+         *  - closeOnExec(true)
+         */
+        template<typename... AiFamilyPrefs>
+        int listen(int backlog, AiFamilyPrefs... familyPrefs) {
+            int socketFlagSet = O_NONBLOCK;
+            bool closeExec = true;
+
+            list<int> prefsList{};
+            (prefsList.push_back(familyPrefs), ...);
+
+            findPeerInfo(::bind, prefsList);
+
+            if (sock_fd >= 0) {
+                ::listen(sock_fd, backlog);
+
+                socket_type = SockListen;
+
+                /**
+                 * Allow socket reuse.
+                 */
+                int on{1};
+                status = setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on));
+
+                return std::min(socketFlags(true, socketFlagSet), closeOnExec(closeExec));
+            }
+
+            return -1;
         }
 
 

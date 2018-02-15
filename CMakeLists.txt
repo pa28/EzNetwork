@@ -25,14 +25,14 @@ else (DOXYGEN_FOUND)
     message("Doxygen needs to be installed to generate the doxygen documentation")
 endif (DOXYGEN_FOUND)
 
-add_executable(ServerTest serverTest.cpp socket.h server.h name_that_type.h)
+add_executable(ServerTest serverTest.cpp socket.h server.h name_that_type.h socket_buffer.h)
 
 add_executable(ManipTest iomanip.h manipTest.cpp name_that_type.h)
 
-add_executable(AsyncServer asyncServerTest.cpp socket.h server.h name_that_type.h)
+add_executable(AsyncServer asyncServerTest.cpp socket.h server.h name_that_type.h socket_buffer.h)
 
 target_link_libraries (AsyncServer ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(AsyncNet basic_socket.h asyncNet.cpp)
+add_executable(AsyncNet basic_socket.h asyncNet.cpp socket_buffer.h)
 
 target_link_libraries (AsyncNet ${CMAKE_THREAD_LIBS_INIT})
