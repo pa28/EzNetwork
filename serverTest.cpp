@@ -147,6 +147,7 @@ int main() {
 
     // Make a socket to bind to any address at port 8000 and add it to the server
     auto serverListen = server.push_front(make_unique<Socket>("", "8000"));
+    (*serverListen)->selectClients = SC_Read;
 
     // Listen to IPV6 which will also listen to IPV4
     if ((*serverListen)->listen(10, AF_INET6) < 0) {
@@ -168,6 +169,7 @@ int main() {
                     if ((*newSock)->fd() >= 0) {
                         cout << "New connection " << (*newSock)->getPeerName() << endl;
                         run = (*newSock)->setStreamBuffer(make_unique<socket_streambuf>((*newSock)->fd()));
+                        (*newSock)->selectClients = SC_Read;
                     }
                 } else if (server.isRead(first)) {
                     char buf[BUFSIZ];

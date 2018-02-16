@@ -70,6 +70,10 @@ namespace async_net {
 
     public:
 
+        ~basic_socket() {
+            close();
+        }
+
         /**
          * @brief Create a socket object to hold an accepted connection.
          */
@@ -183,9 +187,13 @@ namespace async_net {
          * @return the return value from ::close(2)
          */
         int close() {
-            int r = ::close(sock_fd);
-            sock_fd = -1;
-            return r;
+            if (sock_fd >= 0) {
+                int r = ::close(sock_fd);
+                sock_fd = -1;
+                return r;
+            }
+
+            return 0;
         }
 
 
@@ -361,6 +369,64 @@ namespace async_net {
             freeaddrinfo(peer_info);
             peer_info = nullptr;
         }
+
+
+        /**
+         * @brief Call select the socket iff it is a listen socket
+         * @tparam Duration template parameter for duration of timeout
+         * @param duration A std::chrono duration to use as the timeout
+         * @return the value returned from ::select()
+         */
+        template <typename Duration>
+        int select(Duration &&duration) {
+            struct timeval timeout{};
+
+            std::chrono::seconds const sec = std::chrono::duration_cast<std::chrono::seconds>(duration);
+            timeout.tv_sec = sec.count();
+            timeout.tv_usec = std::chrono::duration_cast<std::chrono::microseconds>(duration - sec).count();
+            return select(&timeout);
+        }
+
+        /**
+         * @brief Call select the socket iff it is a listen socket
+         * @param selectClients What operations to select the clients on
+         * @param timeout A timeout value in a timeval struct or nullptr for no timeout
+         * @return the value returned from ::select()
+         */
+        int select(struct timeval *timeout = nullptr) {
+            fd_set rd_set{};
+
+            if (socket_type != SockListen) {
+                throw logic_error("Listen on a non-listening socket.");
+            }
+
+            FD_ZERO(&rd_set);
+            FD_SET( sock_fd, &rd_set );
+            int n = sock_fd + 1;
+
+            return ::select(n, &rd_set, nullptr, nullptr, timeout);
+        }
+
+
+        /**
+         * @brief Accept a connection request on a listener socket, add the accepted connection
+         * to the connection list.
+         * @param acceptFlags Socket flags to set on except see accept4()
+         * @return
+         */
+        template <class Socket_t>
+        unique_ptr<Socket_t> accept(int acceptFlags = SOCK_CLOEXEC) {
+            if (socketType() == SockListen) {
+                struct sockaddr_storage client_addr{};
+                socklen_t length = sizeof(client_addr);
+
+                int clientfd = ::accept4(sock_fd, (struct sockaddr *) &client_addr, &length, acceptFlags);
+                return std::make_unique<Socket_t>(clientfd, (struct sockaddr *) &client_addr, length);
+            }
+
+            throw logic_error("Accept on a non-listening socket.");
+        }
+
 
     };
 }
